@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>연금 최적화 엔진 v5.1 (UI 분할 + 별표 제거)</title>
+    <title>연금 최적화 엔진 v5.2 (상자 단위 추가 및 켈프 통일)</title>
     <style>
         :root { --primary: #1e3a8a; --primary-light: #eff6ff; --border: #e2e8f0; --text-main: #334155; --text-muted: #64748b; --bg: #f8fafc; --accent: #2563eb; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); padding: 20px; color: var(--text-main); margin: 0; }
@@ -57,7 +57,7 @@
         .goods-card .name { font-weight: 700; margin-bottom: 8px; font-size: 0.95rem; }
         .goods-card .amt { font-size: 1.3rem; font-weight: 800; color: #dc2626; }
 
-        /* 서브 타이틀 및 준비물 레이아웃 (v5.0 적용) */
+        /* 서브 타이틀 및 준비물 레이아웃 */
         .sub-tit { font-size: 0.95rem; font-weight: 800; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 8px; margin-top: 15px; }
         .sub-tit:first-child { margin-top: 0; }
         
@@ -102,7 +102,6 @@
         }
     };
 
-    // 별표 제거 로직 반영 (showStars)
     function createItemBox(id, label, stars, showStars = true) {
         const displayName = label.replace(/^[1-3]_/, '');
         let starHtml = '';
@@ -131,7 +130,6 @@
             const refineName = tier === 1 ? "정수" : (tier === 2 ? "에센스" : "엘릭서");
             const interName = tier === 1 ? "핵" : (tier === 2 ? "결정" : "영약");
             
-            // 어패류는 별표 유지(true), 가공품/조합품은 별표 제거(false)
             const rawGrid = struct.raw[tier].map(item => createItemBox(item, item, tier, true)).join('');
             const refGrid = struct.refined[tier].map(item => createItemBox(item, item, tier, false)).join('');
             const interGrid = struct.inter[tier].map(item => createItemBox(item, item, tier, false)).join('');
@@ -174,27 +172,33 @@
         });
     }
 
+    // [핵심 로직 변경] 상자 / 세트 / 낱개 표기 포맷터
     function formatAmt(val) {
         if(val === 0) return "-";
-        const s = Math.floor(val / SET);
-        const u = val % SET;
-        if(s>0 && u>0) return `${s}세트 ${u}개`;
-        if(s>0) return `${s}세트`;
-        return `${u}개`;
+        
+        const b = Math.floor(val / BOX);
+        const remAfterBox = val % BOX;
+        const s = Math.floor(remAfterBox / SET);
+        const u = remAfterBox % SET;
+        
+        let parts = [];
+        if(b > 0) parts.push(`${b}상자`);
+        if(s > 0) parts.push(`${s}세트`);
+        if(u > 0) parts.push(`${u}개`);
+        
+        return parts.join(' ');
     }
 
-    // 소형 리스트 렌더러 (v5.0 복구)
     function renderMiniList(obj) {
         let rows = '';
         for(const [k, v] of Object.entries(obj)) {
             const name = k.replace(/^[1-3]_/, '');
-            rows += `<div class="mat-item"><span class="name">${name}</span><span>${formatAmt(v)}</span></div>`;
+            rows += `<div class="mat-item"><span class="name">${name}</span><span style="text-align:right;">${formatAmt(v)}</span></div>`;
         }
         if(!rows) rows = '<div class="mat-item" style="color:#94a3b8; justify-content:center;">해당 없음</div>';
         return rows;
     }
 
-    // 카드형 리스트 렌더러 (v5.0 복구)
     function renderMatList(title, obj) {
         return `
             <div class="mats-col">
@@ -231,8 +235,6 @@
                 body: JSON.stringify(payload)
             });
             const data = await response.json();
-            
-            // v5.0의 분할 렌더링 로직 복구
             const route = data.route1; 
             
             let html = "";
